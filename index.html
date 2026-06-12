@@ -881,6 +881,15 @@ tr:last-child td{border-bottom:none;}
 .gal-filter-select:focus{border-color:var(--blue);}
 
 /* Gallery grid */
+.gal-albums-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+.gal-album-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.gal-album-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.08);}
+.gal-album-cover{aspect-ratio:4/3;background:#f1f5f9 linear-gradient(135deg,#f1f5f9,#e2e8f0);overflow:hidden;}
+.gal-album-cover img{width:100%;height:100%;object-fit:cover;}
+.gal-album-info{padding:.75rem 1rem;}
+.gal-album-name{font-weight:700;font-size:14px;margin-bottom:2px;}
+.gal-album-meta{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+.gal-album-actions{display:flex;gap:6px;padding:0 1rem .75rem;}
 .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
 .gal-item{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;background:#f1f5f9;border:1px solid var(--border);transition:transform .18s,box-shadow .18s;}
 .gal-item:hover{transform:translateY(-3px);box-shadow:0 6px 24px rgba(0,0,0,.13);}
@@ -936,6 +945,12 @@ tr:last-child td{border-bottom:none;}
 #confirm-delete-gallery-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1400;display:none;align-items:center;justify-content:center;padding:1rem;}
 #confirm-delete-gallery-modal.open{display:flex;}
 #confirm-delete-gallery-modal .cbox{background:#fff;border-radius:14px;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.2);}
+#album-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;display:none;align-items:center;justify-content:center;padding:1rem;}
+#album-modal.open{display:flex;}
+#album-modal .gubox{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+#confirm-delete-album-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1400;display:none;align-items:center;justify-content:center;padding:1rem;}
+#confirm-delete-album-modal.open{display:flex;}
+#confirm-delete-album-modal .cbox{background:#fff;border-radius:14px;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.2);}
 
 /* Upload progress bar */
 .gal-progress-wrap{margin-top:10px;display:none;}
@@ -2637,44 +2652,17 @@ tr:last-child td{border-bottom:none;}
   <!-- START MARKER: phase10-gallery-page -->
   <div class="page" id="page-gallery">
     <div class="page-header">
-      <div class="page-title">Gallery <span>Event photos from Kasidih High School</span></div>
+      <div class="page-title">Gallery <span id="gal-page-subtitle">Photo albums from Kasidih High School</span></div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-outline btn-sm" onclick="loadGallery()">↻ Refresh</button>
-        <button class="btn btn-primary btn-sm" id="upload-photos-btn" style="display:none;" onclick="openGalleryUploadModal()">📷 Upload Photo</button>
+        <button class="btn btn-primary btn-sm" id="create-album-btn" style="display:none;" onclick="openAlbumModal()">➕ New Album</button>
+        <button class="btn btn-primary btn-sm" id="upload-photos-btn" style="display:none;" onclick="openGalleryUploadModal()">📷 Upload Photos</button>
       </div>
     </div>
 
     <!-- Error state -->
     <div id="gal-error" style="display:none;" class="gal-error">
       ⚠️ <span id="gal-error-msg">Failed to load gallery.</span>
-    </div>
-
-    <!-- Toolbar: search + event filter -->
-    <div class="gal-toolbar">
-      <div class="search-bar" style="margin-bottom:0;flex:1;min-width:200px;">
-        <span>🔍</span>
-        <input id="gal-search" placeholder="Search photos by title…" oninput="applyGalleryFilters()"/>
-      </div>
-      <select class="gal-filter-select" id="gal-filter-event" onchange="applyGalleryFilters()">
-        <option value="">All Events</option>
-      </select>
-      <button class="btn btn-outline btn-sm" onclick="clearGalleryFilters()">✕ Clear</button>
-    </div>
-
-    <!-- Stats row (admin/teacher) -->
-    <div id="gal-stats-row" style="display:none;margin-bottom:1.25rem;">
-      <div class="stats-grid">
-        <div class="stat-card blue">
-          <div class="stat-icon">🖼️</div>
-          <div class="stat-val" id="gal-stat-total">—</div>
-          <div class="stat-label">Total Photos</div>
-        </div>
-        <div class="stat-card gold">
-          <div class="stat-icon">📅</div>
-          <div class="stat-val" id="gal-stat-events">—</div>
-          <div class="stat-label">Events Covered</div>
-        </div>
-      </div>
     </div>
 
     <!-- Loading state -->
@@ -2686,15 +2674,36 @@ tr:last-child td{border-bottom:none;}
     <!-- Empty state -->
     <div id="gal-empty" style="display:none;" class="gal-empty">
       <div class="gal-empty-icon">🖼️</div>
-      <div class="gal-empty-title">No Photos Yet</div>
-      <div class="gal-empty-sub" id="gal-empty-sub">No photos have been uploaded yet. Check back soon!</div>
+      <div class="gal-empty-title">No Albums Yet</div>
+      <div class="gal-empty-sub" id="gal-empty-sub">No albums have been created yet. Check back soon!</div>
     </div>
 
-    <!-- Gallery grid -->
-    <div class="gal-grid" id="gal-grid"></div>
+    <!-- ALBUM HOME -->
+    <div class="gal-albums-grid" id="gal-albums-grid" style="display:none;"></div>
 
-    <!-- Count label -->
-    <div id="gal-count-label" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:right;"></div>
+    <!-- ALBUM DETAIL VIEW -->
+    <div id="gal-album-detail" style="display:none;">
+      <button class="btn btn-outline btn-sm" style="margin-bottom:1rem;" onclick="galShowAlbumsHome()">← Back to Albums</button>
+      <div id="gal-album-header" style="margin-bottom:1rem;"></div>
+
+      <!-- Toolbar: search + event filter -->
+      <div class="gal-toolbar">
+        <div class="search-bar" style="margin-bottom:0;flex:1;min-width:200px;">
+          <span>🔍</span>
+          <input id="gal-search" placeholder="Search photos by title…" oninput="applyGalleryFilters()"/>
+        </div>
+        <select class="gal-filter-select" id="gal-filter-event" style="display:none;" onchange="applyGalleryFilters()">
+          <option value="">All Events</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="clearGalleryFilters()">✕ Clear</button>
+      </div>
+
+      <!-- Gallery grid -->
+      <div class="gal-grid" id="gal-grid"></div>
+
+      <!-- Count label -->
+      <div id="gal-count-label" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:right;"></div>
+    </div>
   </div>
   <!-- END MARKER: phase10-gallery-page -->
 
@@ -4312,10 +4321,10 @@ tr:last-child td{border-bottom:none;}
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="handleGalDrop(event)">
-        <input type="file" id="gal-file-input" accept="image/*" onchange="handleGalFileSelect(event)"/>
+        <input type="file" id="gal-file-input" accept="image/*" multiple onchange="handleGalFileSelect(event)"/>
         <div class="gal-dropzone-icon">📁</div>
-        <div class="gal-dropzone-text">Click or drag an image here</div>
-        <div class="gal-dropzone-sub">JPG, PNG, WebP — max 5MB</div>
+        <div class="gal-dropzone-text">Click or drag images here (multiple allowed)</div>
+        <div class="gal-dropzone-sub">JPG, PNG, WebP — max 5MB each</div>
       </div>
       <div class="gal-preview-wrap" id="gal-preview-wrap"></div>
       <div class="gal-progress-wrap" id="gal-progress-wrap">
@@ -4325,8 +4334,12 @@ tr:last-child td{border-bottom:none;}
 
       <div class="form-grid" style="margin-top:1.25rem;">
         <div class="form-group full">
-          <label>Photo Title *</label>
+          <label>Photo Title <span style="font-weight:400;color:var(--muted);">(used as prefix if multiple files)</span></label>
           <input id="gal-title-input" type="text" placeholder="e.g. Sports Day 2025 — Relay Race"/>
+        </div>
+        <div class="form-group full">
+          <label>Album *</label>
+          <select id="gal-album-input"><option value="">— Uncategorized —</option></select>
         </div>
         <div class="form-group full">
           <label>Linked Event <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
@@ -4343,11 +4356,69 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ALBUM MODAL -->
+<div id="album-modal" onclick="if(event.target===this)closeAlbumModal()">
+  <div class="gubox">
+    <div class="gubox-header">
+      <div>
+        <div style="font-weight:800;font-size:16px;" id="album-modal-title">📁 New Album</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Group photos into a themed album</div>
+      </div>
+      <button onclick="closeAlbumModal()" class="modal-close-btn">✕</button>
+    </div>
+    <div class="gubox-body">
+      <div id="album-modal-error" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-bottom:1rem;"></div>
+      <input type="hidden" id="album-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Album Name *</label>
+          <input id="album-name-input" type="text" placeholder="e.g. Annual Sports Day 2025"/>
+        </div>
+        <div class="form-group full">
+          <label>Description</label>
+          <textarea id="album-desc-input" rows="2" placeholder="Short description of this album"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Cover Photo <span style="font-weight:400;color:var(--muted);">(optional — first uploaded photo is used if empty)</span></label>
+          <input type="file" id="album-cover-input" accept="image/*"/>
+        </div>
+        <div class="form-group full">
+          <label>Linked Event <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+          <select id="album-event-input"><option value="">— No event link —</option></select>
+        </div>
+        <div class="form-group full">
+          <label>Linked Achievement <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+          <select id="album-achievement-input"><option value="">— No achievement link —</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="gubox-footer">
+      <button class="btn btn-outline" onclick="closeAlbumModal()">Cancel</button>
+      <button class="btn btn-primary" id="album-save-btn" onclick="saveAlbum()">💾 Save Album</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE ALBUM MODAL -->
+<div id="confirm-delete-album-modal">
+  <div class="cbox">
+    <div style="font-size:32px;margin-bottom:8px;">🗑️</div>
+    <div style="font-weight:800;margin-bottom:6px;">Delete Album?</div>
+    <div id="confirm-delete-album-msg" style="font-size:13px;color:var(--muted);margin-bottom:1rem;">This will delete the album and all its photos. This cannot be undone.</div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('confirm-delete-album-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="executeDeleteAlbum()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- GALLERY PREVIEW MODAL -->
 <div id="gallery-preview-modal" onclick="if(event.target===this)closeGalleryPreviewModal()">
   <div class="gpbox">
-    <div class="gpbox-img">
+    <div class="gpbox-img" style="position:relative;">
       <img id="gal-preview-img" src="" alt="Gallery preview"/>
+      <button class="btn btn-sm" onclick="event.stopPropagation();galPreviewNav(-1)" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.4);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:18px;">‹</button>
+      <button class="btn btn-sm" onclick="event.stopPropagation();galPreviewNav(1)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.4);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:18px;">›</button>
     </div>
     <div class="gpbox-footer">
       <div class="gpbox-info">
@@ -10057,11 +10128,16 @@ let allGalleryImages  = [];
 let galFilteredImages = [];
 let galPendingDeleteId = null;
 let galSelectedFile    = null;
+let galSelectedFiles   = [];
+let allGalleryAlbums   = [];
+let currentAlbumId     = null;
+let galAlbumPendingDeleteId = null;
 
-// ── Load Gallery ──
+// ── Load Gallery (Albums) ──
 async function loadGallery() {
   galSetState('loading');
   document.getElementById('gal-error').style.display = 'none';
+  currentAlbumId = null;
 
   try {
     const { data, error } = await supabaseClient
@@ -10070,11 +10146,37 @@ async function loadGallery() {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
     allGalleryImages = data || [];
-    galBuildEventFilter(allGalleryImages);
-    galUpdateStats(allGalleryImages);
-    applyGalleryFilters();
+
+    // Try loading albums table (graceful fallback if it doesn't exist yet)
+    let albums = [];
+    try {
+      const { data: ad, error: ae } = await supabaseClient
+        .from('gallery_albums')
+        .select('*, events(title), achievements(title)')
+        .order('created_at', { ascending: false });
+      if (ae) throw ae;
+      albums = ad || [];
+    } catch(albErr) {
+      console.warn('gallery_albums not available, using fallback view:', albErr.message);
+      albums = null; // signal fallback
+    }
+
+    if (albums === null) {
+      // Fallback: single "All Photos" pseudo-album so existing functionality keeps working
+      allGalleryAlbums = [{
+        id: '__all__', name: 'All Photos', description: '', cover_url: (allGalleryImages[0]||{}).image_url || '',
+        created_at: allGalleryImages[0]?.created_at || new Date().toISOString(),
+        photo_count: allGalleryImages.length, event_id: null, achievement_id: null, _fallback: true
+      }];
+    } else {
+      allGalleryAlbums = albums.map(a => {
+        const photos = allGalleryImages.filter(i => i.album_id === a.id);
+        return { ...a, photo_count: photos.length, cover_url: a.cover_url || (photos[0]?.image_url) || '' };
+      });
+    }
+
+    galShowAlbumsHome();
 
   } catch(err) {
     console.error('loadGallery:', err);
@@ -10082,6 +10184,75 @@ async function loadGallery() {
     document.getElementById('gal-error').style.display = 'block';
     document.getElementById('gal-error-msg').textContent = 'Failed to load gallery: ' + (err.message || 'Unknown error');
   }
+}
+
+// ── Albums Home ──
+function galShowAlbumsHome() {
+  currentAlbumId = null;
+  document.getElementById('gal-album-detail').style.display = 'none';
+  document.getElementById('gal-page-subtitle').textContent = 'Photo albums from Kasidih High School';
+
+  const grid = document.getElementById('gal-albums-grid');
+  if (!allGalleryAlbums.length) {
+    galSetState('empty');
+    document.getElementById('gal-empty-title').textContent = 'No Albums Yet';
+    document.getElementById('gal-empty-sub').textContent = 'No albums have been created yet. Check back soon!';
+    grid.style.display = 'none';
+    return;
+  }
+  galSetState('albums');
+
+  const def = ROLES[currentRole] || ROLES.student;
+  const canManage = def.canManageEvents;
+
+  grid.innerHTML = allGalleryAlbums.map(a => {
+    const date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '';
+    const cover = a.cover_url
+      ? `<img src="${escHtml(a.cover_url)}" alt="${escHtml(a.name)}" loading="lazy"/>`
+      : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:42px;">🖼️</div>`;
+    const actions = (canManage && !a._fallback) ? `
+      <div class="gal-album-actions">
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openAlbumModal('${a.id}')">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeleteAlbum('${a.id}','${escHtml(a.name)}')">🗑️ Delete</button>
+      </div>` : '';
+    return `<div class="gal-album-card" onclick="openAlbum('${a.id}')">
+      <div class="gal-album-cover">${cover}</div>
+      <div class="gal-album-info">
+        <div class="gal-album-name">${escHtml(a.name)}</div>
+        <div class="gal-album-meta"><span>${a.photo_count} photo${a.photo_count===1?'':'s'}</span><span>${date}</span></div>
+      </div>
+      ${actions}
+    </div>`;
+  }).join('');
+}
+
+// ── Open an Album ──
+function openAlbum(albumId) {
+  currentAlbumId = albumId;
+  const album = allGalleryAlbums.find(a => a.id === albumId);
+  if (!album) return;
+
+  document.getElementById('gal-albums-grid').style.display = 'none';
+  document.getElementById('gal-album-detail').style.display = '';
+  document.getElementById('gal-empty').style.display = 'none';
+  document.getElementById('gal-grid').style.display = 'grid';
+  document.getElementById('gal-page-subtitle').textContent = album.name;
+
+  const linkedEvent = album.events ? escHtml(album.events.title||'') : '';
+  const linkedAch   = album.achievements ? escHtml(album.achievements.title||'') : '';
+  document.getElementById('gal-album-header').innerHTML = `
+    <div style="font-size:18px;font-weight:800;">${escHtml(album.name)}</div>
+    ${album.description ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${escHtml(album.description)}</div>` : ''}
+    <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
+      ${linkedEvent ? `<span>📅 Event: ${linkedEvent}</span>` : ''}
+      ${linkedAch ? `<span>🏆 Achievement: ${linkedAch}</span>` : ''}
+    </div>`;
+
+  const photos = album._fallback ? allGalleryImages : allGalleryImages.filter(i => i.album_id === albumId);
+  galFilteredImages = photos;
+  galBuildEventFilter(photos);
+  document.getElementById('gal-filter-event').style.display = '';
+  galRenderGrid(photos);
 }
 
 // ── Build event filter dropdown ──
@@ -10108,8 +10279,10 @@ function galBuildEventFilter(images) {
 function applyGalleryFilters() {
   const search  = (document.getElementById('gal-search')?.value || '').toLowerCase().trim();
   const eventId = document.getElementById('gal-filter-event')?.value || '';
+  const album = allGalleryAlbums.find(a => a.id === currentAlbumId);
+  const base = (album && album._fallback) ? allGalleryImages : allGalleryImages.filter(i => i.album_id === currentAlbumId);
 
-  galFilteredImages = allGalleryImages.filter(img => {
+  galFilteredImages = base.filter(img => {
     const titleMatch = !search || (img.title || '').toLowerCase().includes(search);
     const eventMatch = !eventId || img.event_id === eventId;
     return titleMatch && eventMatch;
@@ -10147,11 +10320,12 @@ function galRenderGrid(images) {
     galSetState('empty');
     const search  = document.getElementById('gal-search')?.value || '';
     const eventId = document.getElementById('gal-filter-event')?.value || '';
+    document.getElementById('gal-empty-title').textContent = 'No Photos Yet';
     const sub = document.getElementById('gal-empty-sub');
     if (sub) {
       sub.textContent = (search || eventId)
         ? 'No photos match your search/filter. Try clearing the filters.'
-        : 'No photos have been uploaded yet. Check back soon!';
+        : 'No photos have been uploaded to this album yet.';
     }
     return;
   }
@@ -10185,6 +10359,7 @@ function galSetState(state) {
   document.getElementById('gal-loading').style.display = state==='loading' ? 'block' : 'none';
   document.getElementById('gal-empty').style.display   = state==='empty'   ? 'block' : 'none';
   document.getElementById('gal-grid').style.display    = state==='grid'    ? 'grid'  : 'none';
+  document.getElementById('gal-albums-grid').style.display = state==='albums' ? 'grid' : 'none';
 }
 
 // ── Preview Modal ──
@@ -10212,6 +10387,16 @@ function openGalleryPreview(id) {
 function closeGalleryPreviewModal() {
   document.getElementById('gallery-preview-modal').classList.remove('open');
   document.getElementById('gal-preview-img').src = '';
+}
+
+// ── Prev/Next in fullscreen viewer ──
+function galPreviewNav(dir) {
+  const btn = document.getElementById('gal-preview-delete-btn');
+  const curId = btn?.dataset.id;
+  const idx = galFilteredImages.findIndex(i => i.id === curId);
+  if (idx === -1) return;
+  const nextIdx = (idx + dir + galFilteredImages.length) % galFilteredImages.length;
+  openGalleryPreview(galFilteredImages[nextIdx].id);
 }
 
 function confirmDeleteGalleryFromPreview() {
@@ -10276,7 +10461,7 @@ function galExtractStoragePath(url) {
 
 // ── Upload Modal ──
 async function openGalleryUploadModal() {
-  galSelectedFile = null;
+  galSelectedFiles = [];
   document.getElementById('gal-preview-wrap').innerHTML = '';
   document.getElementById('gal-title-input').value = '';
   document.getElementById('gal-upload-error').style.display   = 'none';
@@ -10296,55 +10481,72 @@ async function openGalleryUploadModal() {
     });
   }
 
+  // Populate album dropdown
+  const albSel = document.getElementById('gal-album-input');
+  if (albSel) {
+    albSel.innerHTML = '<option value="">— Uncategorized —</option>';
+    allGalleryAlbums.filter(a=>!a._fallback).forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id; opt.textContent = a.name;
+      albSel.appendChild(opt);
+    });
+    if (currentAlbumId && currentAlbumId !== '__all__') albSel.value = currentAlbumId;
+  }
+
   document.getElementById('gallery-upload-modal').classList.add('open');
 }
 
 function closeGalleryUploadModal() {
   document.getElementById('gallery-upload-modal').classList.remove('open');
-  galSelectedFile = null;
+  galSelectedFiles = [];
 }
 
 function handleGalFileSelect(event) {
-  const file = event.target.files[0];
-  if (file) galSetSelectedFile(file);
+  const files = Array.from(event.target.files || []);
+  if (files.length) galSetSelectedFiles(files);
 }
 
 function handleGalDrop(event) {
   event.preventDefault();
   document.getElementById('gal-dropzone').classList.remove('drag-over');
-  const file = event.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) galSetSelectedFile(file);
-  else showToast('Please drop an image file.', 'error');
+  const files = Array.from(event.dataTransfer.files || []).filter(f=>f.type.startsWith('image/'));
+  if (files.length) galSetSelectedFiles(files);
+  else showToast('Please drop image file(s).', 'error');
 }
 
-function galSetSelectedFile(file) {
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('File too large. Max 5MB.', 'error'); return;
-  }
-  galSelectedFile = file;
+function galSetSelectedFiles(files) {
+  const valid = files.filter(f => {
+    if (f.size > 5 * 1024 * 1024) { showToast(`"${f.name}" too large. Max 5MB.`, 'error'); return false; }
+    return true;
+  });
+  galSelectedFiles = valid;
   const wrap = document.getElementById('gal-preview-wrap');
-  const reader = new FileReader();
-  reader.onload = e => {
-    wrap.innerHTML = `<img class="gal-preview-thumb" src="${e.target.result}" alt="Preview"/>
-      <div style="font-size:12px;color:var(--muted);align-self:center;">${escHtml(file.name)} (${(file.size/1024).toFixed(1)} KB)</div>`;
-  };
-  reader.readAsDataURL(file);
+  wrap.innerHTML = '';
+  valid.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.style.display='flex';div.style.flexDirection='column';div.style.alignItems='center';
+      div.innerHTML = `<img class="gal-preview-thumb" src="${e.target.result}" alt="Preview"/>
+        <div style="font-size:11px;color:var(--muted);">${escHtml(file.name)}</div>`;
+      wrap.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 async function saveGalleryImage() {
   const title   = document.getElementById('gal-title-input').value.trim();
   const eventId = document.getElementById('gal-event-input').value || null;
+  const albumId = document.getElementById('gal-album-input').value || null;
   const errEl   = document.getElementById('gal-upload-error');
   const sucEl   = document.getElementById('gal-upload-success');
 
   errEl.style.display = 'none';
   sucEl.style.display = 'none';
 
-  if (!galSelectedFile) {
-    errEl.textContent = 'Please select an image to upload.'; errEl.style.display='block'; return;
-  }
-  if (!title) {
-    errEl.textContent = 'Please enter a title for the photo.'; errEl.style.display='block'; return;
+  if (!galSelectedFiles.length) {
+    errEl.textContent = 'Please select at least one image to upload.'; errEl.style.display='block'; return;
   }
 
   const saveBtn = document.getElementById('gal-save-btn');
@@ -10354,45 +10556,55 @@ async function saveGalleryImage() {
   const progFill = document.getElementById('gal-progress-fill');
   const progLabel= document.getElementById('gal-progress-label');
   progWrap.style.display = 'block';
-  progFill.style.width = '20%';
-  progLabel.textContent = 'Uploading image to storage…';
 
   try {
-    // Upload to Supabase Storage
-    const ext  = galSelectedFile.name.split('.').pop() || 'jpg';
-    const path = `gallery/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    let uploadedCover = null;
+    for (let i = 0; i < galSelectedFiles.length; i++) {
+      const file = galSelectedFiles[i];
+      progFill.style.width = Math.round(((i)/galSelectedFiles.length)*90) + '%';
+      progLabel.textContent = `Uploading ${i+1} of ${galSelectedFiles.length}…`;
 
-    const { error: storageErr } = await supabaseClient.storage
-      .from('gallery')
-      .upload(path, galSelectedFile, { contentType: galSelectedFile.type, upsert: false });
+      const ext  = file.name.split('.').pop() || 'jpg';
+      const path = `gallery/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
 
-    if (storageErr) throw storageErr;
+      const { error: storageErr } = await supabaseClient.storage
+        .from('gallery')
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (storageErr) throw storageErr;
 
-    progFill.style.width = '65%';
-    progLabel.textContent = 'Saving record…';
+      const { data: urlData } = supabaseClient.storage.from('gallery').getPublicUrl(path);
+      const publicUrl = urlData?.publicUrl;
+      if (!publicUrl) throw new Error('Failed to get public URL for uploaded image.');
+      if (!uploadedCover) uploadedCover = publicUrl;
 
-    const { data: urlData } = supabaseClient.storage.from('gallery').getPublicUrl(path);
-    const publicUrl = urlData?.publicUrl;
-    if (!publicUrl) throw new Error('Failed to get public URL for uploaded image.');
+      const itemTitle = galSelectedFiles.length > 1
+        ? `${title || 'Photo'} ${i+1}`
+        : (title || file.name);
 
-    const { error: dbErr } = await supabaseClient.from('gallery_images').insert([{
-      event_id:    eventId,
-      title:       title,
-      image_url:   publicUrl,
-      uploaded_by: currentUser?.id || null,
-    }]);
+      const record = { event_id: eventId, title: itemTitle, image_url: publicUrl, uploaded_by: currentUser?.id || null };
+      if (albumId) record.album_id = albumId;
 
-    if (dbErr) throw dbErr;
+      const { error: dbErr } = await supabaseClient.from('gallery_images').insert([record]);
+      if (dbErr) throw dbErr;
+    }
+
+    // Auto-set album cover if it has none yet
+    if (albumId && uploadedCover) {
+      const album = allGalleryAlbums.find(a => a.id === albumId);
+      if (album && !album.cover_url) {
+        try { await supabaseClient.from('gallery_albums').update({cover_url: uploadedCover}).eq('id', albumId); } catch(_){}
+      }
+    }
 
     progFill.style.width = '100%';
     progLabel.textContent = 'Done!';
-    sucEl.textContent = '✅ Photo uploaded successfully!';
+    sucEl.textContent = `✅ ${galSelectedFiles.length} photo(s) uploaded successfully!`;
     sucEl.style.display = 'block';
 
     setTimeout(() => {
       closeGalleryUploadModal();
-      loadGallery();
-    }, 1200);
+      loadGallery().then(() => { if (albumId) openAlbum(albumId); });
+    }, 1000);
 
   } catch(err) {
     console.error('saveGalleryImage:', err);
@@ -10405,15 +10617,131 @@ async function saveGalleryImage() {
   }
 }
 
+// ── Album CRUD ──
+async function openAlbumModal(albumId) {
+  document.getElementById('album-modal-error').style.display = 'none';
+  document.getElementById('album-edit-id').value = albumId || '';
+  document.getElementById('album-cover-input').value = '';
+
+  // Populate event/achievement dropdowns
+  const evSel = document.getElementById('album-event-input');
+  evSel.innerHTML = '<option value="">— No event link —</option>';
+  const { data: events } = await supabaseClient.from('events').select('id,title').order('created_at',{ascending:false}).limit(100);
+  (events||[]).forEach(ev => { const o=document.createElement('option'); o.value=ev.id; o.textContent=ev.title; evSel.appendChild(o); });
+
+  const achSel = document.getElementById('album-achievement-input');
+  achSel.innerHTML = '<option value="">— No achievement link —</option>';
+  try {
+    const { data: achs } = await supabaseClient.from('achievements').select('id,title').order('created_at',{ascending:false}).limit(100);
+    (achs||[]).forEach(a => { const o=document.createElement('option'); o.value=a.id; o.textContent=a.title; achSel.appendChild(o); });
+  } catch(_){}
+
+  if (albumId) {
+    const a = allGalleryAlbums.find(x=>x.id===albumId);
+    document.getElementById('album-modal-title').textContent = '✏️ Edit Album';
+    document.getElementById('album-name-input').value = a?.name || '';
+    document.getElementById('album-desc-input').value = a?.description || '';
+    if (a?.event_id) evSel.value = a.event_id;
+    if (a?.achievement_id) achSel.value = a.achievement_id;
+  } else {
+    document.getElementById('album-modal-title').textContent = '📁 New Album';
+    document.getElementById('album-name-input').value = '';
+    document.getElementById('album-desc-input').value = '';
+  }
+
+  document.getElementById('album-modal').classList.add('open');
+}
+
+function closeAlbumModal() {
+  document.getElementById('album-modal').classList.remove('open');
+}
+
+async function saveAlbum() {
+  const id   = document.getElementById('album-edit-id').value || null;
+  const name = document.getElementById('album-name-input').value.trim();
+  const errEl = document.getElementById('album-modal-error');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent='Album name is required.'; errEl.style.display='block'; return; }
+
+  const saveBtn = document.getElementById('album-save-btn');
+  saveBtn.disabled = true; saveBtn.textContent = '⏳ Saving…';
+
+  try {
+    let coverUrl = null;
+    const coverFile = document.getElementById('album-cover-input').files[0];
+    if (coverFile) {
+      const ext = coverFile.name.split('.').pop() || 'jpg';
+      const path = `gallery/${Date.now()}_cover_${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error: se } = await supabaseClient.storage.from('gallery').upload(path, coverFile, {contentType: coverFile.type, upsert:false});
+      if (se) throw se;
+      coverUrl = supabaseClient.storage.from('gallery').getPublicUrl(path).data?.publicUrl;
+    }
+
+    const payload = {
+      name,
+      description: document.getElementById('album-desc-input').value.trim(),
+      event_id: document.getElementById('album-event-input').value || null,
+      achievement_id: document.getElementById('album-achievement-input').value || null,
+    };
+    if (coverUrl) payload.cover_url = coverUrl;
+    if (!id) payload.created_by = currentUser?.id || null;
+
+    const { error } = id
+      ? await supabaseClient.from('gallery_albums').update(payload).eq('id', id)
+      : await supabaseClient.from('gallery_albums').insert([payload]);
+    if (error) throw error;
+
+    showToast(id ? '✅ Album updated.' : '✅ Album created.', 'success');
+    closeAlbumModal();
+    loadGallery();
+  } catch(err) {
+    console.error('saveAlbum:', err);
+    errEl.textContent = 'Save failed: ' + (err.message || 'Unknown error');
+    errEl.style.display = 'block';
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save Album';
+  }
+}
+
+function confirmDeleteAlbum(id, name) {
+  galAlbumPendingDeleteId = id;
+  document.getElementById('confirm-delete-album-msg').textContent = `Delete album "${name}" and all its photos? This cannot be undone.`;
+  document.getElementById('confirm-delete-album-modal').classList.add('open');
+}
+
+async function executeDeleteAlbum() {
+  if (!galAlbumPendingDeleteId) return;
+  const id = galAlbumPendingDeleteId;
+  document.getElementById('confirm-delete-album-modal').classList.remove('open');
+  galAlbumPendingDeleteId = null;
+
+  try {
+    const photos = allGalleryImages.filter(i => i.album_id === id);
+    for (const p of photos) {
+      const path = galExtractStoragePath(p.image_url);
+      if (path) { try { await supabaseClient.storage.from('gallery').remove([path]); } catch(_){} }
+    }
+    await supabaseClient.from('gallery_images').delete().eq('album_id', id);
+    const { error } = await supabaseClient.from('gallery_albums').delete().eq('id', id);
+    if (error) throw error;
+    showToast('🗑️ Album deleted.', 'success');
+    loadGallery();
+  } catch(err) {
+    console.error('executeDeleteAlbum:', err);
+    showToast('Failed to delete album: ' + (err.message||'Unknown error'), 'error');
+  }
+}
+
 // ── Patch showPage V9 → V10: gallery ──
 const _showPageV9 = window.showPage;
 window.showPage = function showPageV10(id) {
   _showPageV9(id);
-  // gallery stats visibility update after role check
   if (id === 'gallery') {
     const def = ROLES[currentRole] || ROLES.student;
-    const statsRow = document.getElementById('gal-stats-row');
-    if (statsRow) statsRow.style.display = def.canManageEvents ? 'block' : 'none';
+    const createBtn = document.getElementById('create-album-btn');
+    const uploadBtn = document.getElementById('upload-photos-btn');
+    if (createBtn) createBtn.style.display = def.canManageEvents ? '' : 'none';
+    if (uploadBtn) uploadBtn.style.display = def.canManageEvents ? '' : 'none';
   }
 };
 
@@ -15842,7 +16170,7 @@ initAuth();
 
 // ── PHASE 5: ENFORCE SINGLE MODAL AT A TIME ──
 (function(){
-  const modalIds = ['achievement-modal','add-house-points-modal','announcement-modal','att-modal','attendance-modal','bulk-cert-modal','cert-preview-modal','cert-templates-modal','confirm-delete-gallery-modal','confirm-delete-modal','confirm-delete-result-modal','confirm-revoke-modal','create-event-modal','event-detail-modal','gallery-preview-modal','gallery-upload-modal','gen-cert-modal','house-detail-modal','participants-modal','photo-upload-modal','profile-complete-modal','pub-event-modal','upload-result-modal','verify-cert-modal'];
+  const modalIds = ['achievement-modal','add-house-points-modal','announcement-modal','att-modal','attendance-modal','bulk-cert-modal','cert-preview-modal','cert-templates-modal','confirm-delete-gallery-modal','confirm-delete-modal','confirm-delete-result-modal','confirm-revoke-modal','create-event-modal','event-detail-modal','gallery-preview-modal','gallery-upload-modal','gen-cert-modal','house-detail-modal','participants-modal','photo-upload-modal','profile-complete-modal','pub-event-modal','upload-result-modal','verify-cert-modal','album-modal','confirm-delete-album-modal'];
   function isOpen(el){ return el && (el.style.display==='flex'||el.style.display==='block'); }
   function setup(){
     modalIds.forEach(id=>{
