@@ -1240,14 +1240,19 @@ tr:last-child td{border-bottom:none;}
   #cert-preview-modal .cpbox,
   #verify-cert-modal .vbox,
   #participants-modal .pbox{max-width:100% !important;margin:0.4rem;width:calc(100vw - 0.8rem) !important;}
-  .topbar{padding:0 0.6rem;}
+  .topbar{padding:0 0.5rem;}
   .topbar-nav{display:none;}
-  .school-logo{width:38px;height:38px;font-size:10px;}
+  .topbar-right{gap:4px;}
+  .school-logo{width:36px;height:36px;font-size:10px;}
   .school-name span{display:none;}
   .school-name{font-size:13px;}
-  #topbar-hamburger{display:flex !important;}
+  #hamburger-btn{display:flex !important;}
+  #topbar-theme-btn{display:none !important;}
+  #notif-btn{display:none !important;}
   #user-chip-btn span:last-child{display:none;}
   #topbar-username{display:none;}
+  #topbar-role-chip{display:none !important;}
+  .user-chip{padding:4px;}
   .stats-grid{grid-template-columns:1fr 1fr;}
   .p15-info-grid{grid-template-columns:1fr;}
   .khs-footer-grid{grid-template-columns:1fr !important;}
@@ -1498,6 +1503,11 @@ tr:last-child td{border-bottom:none;}
     <div class="mobile-sidebar-close">
       <span>☰ Navigation</span>
       <button onclick="closeMobileSidebar()">✕</button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Actions</div>
+      <button class="slink" onclick="cycleTheme()"><span class="icon">🎨</span> Change Theme</button>
+      <button class="slink" onclick="toggleNotifPanel();closeMobileSidebar()"><span class="icon">🔔</span> Announcements</button>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Main</div>
@@ -4258,9 +4268,9 @@ tr:last-child td{border-bottom:none;}
             <select id="ach-house" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
               <option value="">— None —</option>
               <option value="Agni">🔴 Agni</option>
-              <option value="Jal">🔵 Jal</option>
-              <option value="Prithvi">🟤 Prithvi</option>
-              <option value="Vayu">🟢 Vayu</option>
+              <option value="Surya">🔵 Surya</option>
+              <option value="Indra">🟢 Indra</option>
+              <option value="Varun">🟡 Varun</option>
             </select></div>
           <div><label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Date *</label>
             <input id="ach-date" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;"/></div>
@@ -5025,7 +5035,7 @@ async function saveEvent() {
   saveBtn.innerHTML = '⏳ Saving…';
 
   try {
-    const newEvent = { ...payload, current_registrations: 0, academic_year: '2024-25' };
+    const newEvent = { ...payload, current_registrations: 0, academic_year: '2024-25', created_by: currentUser ? currentUser.id : null };
     const { data, error } = await supabaseClient.from('events').insert([newEvent]).select().single();
     if (error) throw error;
 
@@ -12317,6 +12327,23 @@ async function changeUserRole(userId, newRole, selectEl) {
     if (error) throw error;
     const idx = allRolesUsers12.findIndex(u=>u.id===userId);
     if (idx!==-1) allRolesUsers12[idx].role = newRole;
+
+    // ── AUTO SYNC: students table ↔ role ──
+    try {
+      if (newRole === 'student') {
+        const u = allRolesUsers12[idx] || {};
+        await supabaseClient.from('students').upsert([{
+          id: userId,
+          name: u.full_name || (u.email||'').split('@')[0],
+          email: u.email || null,
+        }], { onConflict: 'id', ignoreDuplicates: false });
+      } else {
+        await supabaseClient.from('students').delete().eq('id', userId);
+      }
+    } catch(syncErr) {
+      console.warn('Student sync non-fatal:', syncErr.message);
+    }
+
     selectEl.dataset.prevRole = newRole;
     showToast(`✅ Role changed to ${newRole}.`,'success');
   } catch(e) {
@@ -15819,6 +15846,28 @@ document.addEventListener('keydown', function(e) {
 });
 
 initAuth();
+
+// ── PHASE 5: ENFORCE SINGLE MODAL AT A TIME ──
+(function(){
+  const modalIds = ['achievement-modal','add-house-points-modal','announcement-modal','att-modal','attendance-modal','bulk-cert-modal','cert-preview-modal','cert-templates-modal','confirm-delete-gallery-modal','confirm-delete-modal','confirm-delete-result-modal','confirm-revoke-modal','create-event-modal','event-detail-modal','gallery-preview-modal','gallery-upload-modal','gen-cert-modal','house-detail-modal','participants-modal','photo-upload-modal','profile-complete-modal','pub-event-modal','upload-result-modal','verify-cert-modal'];
+  function isOpen(el){ return el && (el.style.display==='flex'||el.style.display==='block'); }
+  function setup(){
+    modalIds.forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      new MutationObserver(()=>{
+        if(isOpen(el)){
+          modalIds.forEach(other=>{
+            if(other===id) return;
+            const o = document.getElementById(other);
+            if(isOpen(o)) o.style.display='none';
+          });
+        }
+      }).observe(el,{attributes:true,attributeFilter:['style']});
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',setup); else setup();
+})();
 
 </script>
   <!-- START MARKER: phase15b-footer -->
