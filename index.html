@@ -1521,13 +1521,13 @@ tr:last-child td{border-bottom:none;}
     <div class="sidebar-section" id="mobile-mgmt-section">
       <div class="sidebar-label">Management</div>
       <button class="slink" data-roles="admin,teacher" onclick="showPage('students');closeMobileSidebar()"><span class="icon">👨‍🎓</span> Students</button>
-      <button class="slink" data-roles="admin,teacher,student" onclick="showPage('attendance');closeMobileSidebar()"><span class="icon">📅</span> Attendance</button>
       <button class="slink" data-roles="admin,teacher" onclick="showPage('certificates');closeMobileSidebar()"><span class="icon">📜</span> Certificates</button>
       <button class="slink" data-roles="admin,teacher" onclick="showPage('analytics');closeMobileSidebar()"><span class="icon">📊</span> Analytics</button>
       <button class="slink" data-roles="admin" onclick="showPage('admin');closeMobileSidebar()"><span class="icon">⚙️</span> Admin Panel</button>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Portal</div>
+      <button class="slink" data-roles="admin,teacher,student" onclick="showPage('attendance');closeMobileSidebar()"><span class="icon">📅</span> Attendance</button>
       <button class="slink" onclick="showPage('public');closeMobileSidebar()"><span class="icon">🌐</span> Public Portal</button>
       <button class="slink" onclick="showPage('parent-portal');closeMobileSidebar()"><span class="icon">👪</span> Parent Portal</button>
       <button class="slink" id="mobile-my-profile-slink" onclick="showPage('profile');closeMobileSidebar()"><span class="icon">👤</span> My Profile</button>
@@ -1557,13 +1557,13 @@ tr:last-child td{border-bottom:none;}
   <div class="sidebar-section" id="desktop-mgmt-section">
     <div class="sidebar-label">Management</div>
     <button class="slink" data-roles="admin,teacher" onclick="showPage('students')"><span class="icon">👨‍🎓</span> Students</button>
-    <button class="slink" data-roles="admin,teacher,student" onclick="showPage('attendance')"><span class="icon">📅</span> Attendance</button>
     <button class="slink" data-roles="admin,teacher" onclick="showPage('certificates')"><span class="icon">📜</span> Certificates</button>
     <button class="slink" data-roles="admin,teacher" onclick="showPage('analytics')"><span class="icon">📊</span> Analytics</button>
     <button class="slink" data-roles="admin" onclick="showPage('admin')"><span class="icon">⚙️</span> Admin Panel</button>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Portal</div>
+    <button class="slink" data-roles="admin,teacher,student" onclick="showPage('attendance')"><span class="icon">📅</span> Attendance</button>
     <button class="slink" onclick="showPage('public')"><span class="icon">🌐</span> Public Portal</button>
     <button class="slink" onclick="showPage('parent-portal')"><span class="icon">👪</span> Parent Portal</button>
     <button class="slink" id="my-profile-slink" onclick="showPage('profile')"><span class="icon">👤</span> My Profile</button>
@@ -4483,7 +4483,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 const ROLES = {
   student: {
     label: 'Student', emoji: '👨‍🎓', chipClass: 'student',
-    pages: ['dashboard','events','results','achievements','gallery','public','profile','certificates','my-registrations','student-profile','attendance','parent-portal','about-school','contact','about-developer','privacy','terms','houses','announcements','analytics'],
+    pages: ['dashboard','events','results','achievements','gallery','public','profile','certificates','my-registrations','student-profile','attendance','parent-portal','about-school','contact','about-developer','privacy','terms','houses','announcements'],
     canCreateEvents: false, canManageEvents: false,
     canViewStudents: false, canManageStudents: false,
     canViewAnalytics: false, canAccessAdmin: false,
@@ -13155,13 +13155,6 @@ async function searchParentPortal() {
   const q = (document.getElementById('pp-search-input').value || '').trim();
   const errEl = document.getElementById('pp-search-error');
   errEl.style.display = 'none';
-
-  // Require login to view student details
-  if (!currentUser) {
-    errEl.textContent = '🔒 Please sign in to use the Parent Portal.';
-    errEl.style.display = '';
-    return;
-  }
 
   if (!q) { errEl.textContent = 'Please enter a name or admission number.'; errEl.style.display = ''; return; }
 
