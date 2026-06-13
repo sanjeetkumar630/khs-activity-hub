@@ -3756,6 +3756,14 @@ tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div id="detail-description" style="margin-top:14px;font-size:13px;color:var(--muted);line-height:1.7;"></div>
+      <div id="detail-photos-section" style="margin-top:16px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:13px;">📷 Event Photos</div>
+          <button class="btn btn-outline btn-sm" id="detail-upload-photos-btn" style="display:none;" onclick="openEventPhotoUpload()">+ Upload</button>
+        </div>
+        <div class="gal-albums-grid" id="detail-photos-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div>
+        <div id="detail-photos-empty" style="font-size:12px;color:var(--muted);display:none;">No photos uploaded yet.</div>
+      </div>
     </div>
     <div class="modal-footer" id="detail-footer"></div>
   </div>
@@ -4298,6 +4306,31 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 <!-- END MARKER: phase13b-modals -->
+
+<!-- ACHIEVEMENT DETAIL MODAL (GALLERY-B) -->
+<div id="ach-detail-modal" onclick="if(event.target===this)closeAchievementDetail()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;">
+    <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:18px;font-weight:800;" id="ach-detail-title">—</div>
+      <button class="modal-close-btn" onclick="closeAchievementDetail()">✕</button>
+    </div>
+    <div style="padding:1.5rem;">
+      <div id="ach-detail-rows" style="font-size:13px;line-height:1.9;"></div>
+      <div id="ach-detail-desc" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
+      <div id="ach-detail-photos-section" style="margin-top:16px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:13px;">📷 Achievement Photos</div>
+          <button class="btn btn-outline btn-sm" id="ach-detail-upload-btn" style="display:none;" onclick="openAchievementPhotoUpload()">+ Upload</button>
+        </div>
+        <div class="gal-albums-grid" id="ach-detail-photos-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div>
+        <div id="ach-detail-photos-empty" style="font-size:12px;color:var(--muted);display:none;">No photos uploaded yet.</div>
+      </div>
+    </div>
+    <div style="padding:1rem 1.5rem;border-top:1px solid var(--border);text-align:right;">
+      <button class="btn btn-outline" onclick="closeAchievementDetail()">Close</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- START MARKER: phase10-modals -->
@@ -4976,6 +5009,12 @@ function viewEvent(id) {
     footerBtns += `<button class="btn btn-register" onclick="closeDetailModal();registerEvent('${ev.id}')">📝 Register</button>`;
   }
   document.getElementById('detail-footer').innerHTML = footerBtns;
+
+  // ── GALLERY-B: linked event photo gallery ──
+  currentDetailEventId = ev.id;
+  loadLinkedAlbumPhotos('event', ev.id, ev.title);
+  const upBtn = document.getElementById('detail-upload-photos-btn');
+  if (upBtn) upBtn.style.display = def.canManageEvents ? '' : 'none';
 
   const modal = document.getElementById('event-detail-modal');
   modal.style.display = 'flex';
@@ -10732,7 +10771,118 @@ async function executeDeleteAlbum() {
   }
 }
 
-// ── Patch showPage V9 → V10: gallery ──
+// ══════════════════════════════════════════════════════════════
+//  PHASE GALLERY-B — Linked photo albums for Events & Achievements
+// ══════════════════════════════════════════════════════════════
+let currentDetailEventId = null;
+let currentDetailAchievementId = null;
+let _linkedPhotoTarget = null; // {type:'event'|'achievement', id, name}
+
+// Find (or note absence of) album linked to an event/achievement
+async function getLinkedAlbum(type, id) {
+  const col = type === 'event' ? 'event_id' : 'achievement_id';
+  try {
+    const { data, error } = await supabaseClient.from('gallery_albums').select('*').eq(col, id).limit(1);
+    if (error) throw error;
+    return (data && data[0]) || null;
+  } catch(e) { return null; }
+}
+
+async function getOrCreateLinkedAlbum(type, id, name) {
+  let album = await getLinkedAlbum(type, id);
+  if (album) return album;
+  const col = type === 'event' ? 'event_id' : 'achievement_id';
+  const payload = { name: name || (type==='event'?'Event Album':'Achievement Album'), [col]: id, created_by: currentUser?.id || null };
+  const { data, error } = await supabaseClient.from('gallery_albums').insert([payload]).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// Load + render photos linked to an event/achievement into a grid
+async function loadLinkedAlbumPhotos(type, id, name) {
+  const gridId  = type === 'event' ? 'detail-photos-grid' : 'ach-detail-photos-grid';
+  const emptyId = type === 'event' ? 'detail-photos-empty' : 'ach-detail-photos-empty';
+  const secId   = type === 'event' ? 'detail-photos-section' : 'ach-detail-photos-section';
+  const grid = document.getElementById(gridId);
+  const empty = document.getElementById(emptyId);
+  const sec = document.getElementById(secId);
+  if (!grid) return;
+  if (sec) sec.style.display = '';
+
+  const album = await getLinkedAlbum(type, id);
+  let photos = [];
+  if (album) {
+    try {
+      const { data } = await supabaseClient.from('gallery_images').select('*').eq('album_id', album.id).order('created_at',{ascending:false});
+      photos = data || [];
+    } catch(_){}
+  }
+  galFilteredImages = photos; // enable preview prev/next + delete
+
+  if (!photos.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const def = ROLES[currentRole] || ROLES.student;
+  const canDelete = def.canManageEvents;
+  grid.innerHTML = photos.map(img => {
+    const delBtn = canDelete ? `<button class="gal-item-delete" onclick="event.stopPropagation();confirmDeleteGallery('${img.id}','${escHtml(img.title||'this photo')}')">🗑️</button>` : '';
+    return `<div class="gal-item" style="aspect-ratio:1;" onclick="openGalleryPreview('${img.id}')">
+      ${delBtn}
+      <img src="${escHtml(img.image_url)}" alt="${escHtml(img.title||'Photo')}" loading="lazy"/>
+    </div>`;
+  }).join('');
+}
+
+// Upload button handlers — open gallery upload pre-bound to the linked album
+async function openEventPhotoUpload() {
+  if (!currentDetailEventId) return;
+  const ev = allEvents.find(e=>e.id===currentDetailEventId);
+  const album = await getOrCreateLinkedAlbum('event', currentDetailEventId, ev?.title);
+  await openGalleryUploadModalFor(album, ev?.id || null, () => { closeDetailModal(); viewEvent(currentDetailEventId); });
+}
+
+async function openAchievementPhotoUpload() {
+  if (!currentDetailAchievementId) return;
+  const a = allAchievements.find(x=>x.id===currentDetailAchievementId);
+  const album = await getOrCreateLinkedAlbum('achievement', currentDetailAchievementId, a?.title);
+  await openGalleryUploadModalFor(album, null, () => { openAchievementDetail(currentDetailAchievementId); });
+}
+
+// Open the standard upload modal, pre-select an album, and run a callback on success
+async function openGalleryUploadModalFor(album, eventId, onDone) {
+  await openGalleryUploadModal();
+  const albSel = document.getElementById('gal-album-input');
+  if (albSel) {
+    if (!allGalleryAlbums.find(a=>a.id===album.id)) allGalleryAlbums.push(album);
+    if (![...albSel.options].some(o=>o.value===album.id)) {
+      const o = document.createElement('option'); o.value = album.id; o.textContent = album.name; albSel.appendChild(o);
+    }
+    albSel.value = album.id;
+    albSel.disabled = true;
+  }
+  if (eventId) {
+    const evSel = document.getElementById('gal-event-input');
+    if (evSel) evSel.value = eventId;
+  }
+  _linkedPhotoCallback = onDone || null;
+}
+let _linkedPhotoCallback = null;
+
+// Wrap saveGalleryImage to run linked-photo callback + re-enable album select after
+const _saveGalleryImageBase = saveGalleryImage;
+saveGalleryImage = async function() {
+  const albSel = document.getElementById('gal-album-input');
+  const wasLocked = albSel && albSel.disabled;
+  await _saveGalleryImageBase();
+  if (wasLocked) {
+    albSel.disabled = false;
+    if (_linkedPhotoCallback) { const cb = _linkedPhotoCallback; _linkedPhotoCallback = null; setTimeout(cb, 1100); }
+  }
+};
+
 const _showPageV9 = window.showPage;
 window.showPage = function showPageV10(id) {
   _showPageV9(id);
@@ -12873,6 +13023,21 @@ async function loadAchievements() {
     if (error) throw error;
     allAchievements = data || [];
     filteredAchievements = [...allAchievements];
+
+    // GALLERY-B: build achievement → album/cover/count map
+    galAchievementAlbumMap = {};
+    try {
+      const { data: albs } = await supabaseClient.from('gallery_albums').select('id,achievement_id,cover_url').not('achievement_id','is',null);
+      if (albs && albs.length) {
+        const albumIds = albs.map(a=>a.id);
+        const { data: imgs } = await supabaseClient.from('gallery_images').select('album_id,image_url').in('album_id', albumIds);
+        albs.forEach(a => {
+          const photos = (imgs||[]).filter(i=>i.album_id===a.id);
+          galAchievementAlbumMap[a.achievement_id] = { albumId: a.id, cover_url: a.cover_url || photos[0]?.image_url || null, count: photos.length };
+        });
+      }
+    } catch(_){ /* gallery_albums not available — skip */ }
+
     renderAchStats();
     renderAchTable(filteredAchievements);
   } catch(err) {
@@ -12880,6 +13045,38 @@ async function loadAchievements() {
     if (wrap) wrap.innerHTML = `<div style="text-align:center;padding:3rem;color:#ef4444;">❌ ${escHtml(err.message)}<br/><button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="loadAchievements()">↻ Retry</button></div>`;
   }
 }
+
+// ── GALLERY-B: Achievement Detail Modal ──
+let galAchievementAlbumMap = {};
+function openAchievementDetail(id) {
+  const a = allAchievements.find(x=>x.id===id);
+  if (!a) return;
+  currentDetailAchievementId = id;
+
+  document.getElementById('ach-detail-title').textContent = a.title || 'Achievement';
+  document.getElementById('ach-detail-rows').innerHTML = `
+    <div><strong>Student:</strong> ${escHtml(a.student_name||'—')} ${a.admission_no?`(${escHtml(a.admission_no)})`:''}</div>
+    <div><strong>Category:</strong> ${ACH_CATEGORY_EMOJI[a.category]||'📌'} ${escHtml(a.category||'—')}</div>
+    <div><strong>Level:</strong> ${ACH_LEVEL_EMOJI[a.level]||'🎗️'} ${escHtml(a.level||'—')}</div>
+    <div><strong>Date:</strong> ${a.achievement_date ? new Date(a.achievement_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—'}</div>
+    <div><strong>House:</strong> ${escHtml(a.house||'—')}</div>
+  `;
+  document.getElementById('ach-detail-desc').textContent = a.description || '';
+
+  const def = ROLES[currentRole] || ROLES.student;
+  const upBtn = document.getElementById('ach-detail-upload-btn');
+  if (upBtn) upBtn.style.display = def.canManageEvents ? '' : 'none';
+
+  loadLinkedAlbumPhotos('achievement', id, a.title);
+
+  document.getElementById('ach-detail-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeAchievementDetail() {
+  document.getElementById('ach-detail-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
 
 function renderAchStats() {
   const total = allAchievements.length;
@@ -12904,6 +13101,7 @@ function renderAchTable(achs) {
   }
   wrap.innerHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead><tr style="border-bottom:2px solid var(--border);">
+      <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);">Photo</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);">Student</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);">Achievement</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);">Category</th>
@@ -12911,13 +13109,20 @@ function renderAchTable(achs) {
       <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);">Date</th>
       ${canManage ? '<th style="padding:10px 12px;text-align:center;font-size:11px;text-transform:uppercase;color:var(--muted);">Actions</th>' : ''}
     </tr></thead>
-    <tbody>${achs.map(a => `
+    <tbody>${achs.map(a => {
+      const albInfo = galAchievementAlbumMap[a.id];
+      const thumb = albInfo?.cover_url
+        ? `<img src="${escHtml(albInfo.cover_url)}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;"/>`
+        : `<div style="width:42px;height:42px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;">🏅</div>`;
+      const countBadge = albInfo?.count ? `<span style="position:absolute;bottom:-4px;right:-4px;background:var(--blue);color:#fff;font-size:10px;border-radius:10px;padding:1px 5px;">${albInfo.count}</span>` : '';
+      return `
       <tr style="border-bottom:1px solid var(--border);transition:background .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-        <td style="padding:10px 12px;">
+        <td style="padding:10px 12px;"><div style="position:relative;width:42px;cursor:pointer;" onclick="openAchievementDetail('${a.id}')">${thumb}${countBadge}</div></td>
+        <td style="padding:10px 12px;cursor:pointer;" onclick="openAchievementDetail('${a.id}')">
           <div style="font-weight:700;">${escHtml(a.student_name||'—')}</div>
           <div style="font-size:11px;color:var(--muted);">${escHtml(a.admission_no||'')} ${a.house?'· '+a.house:''}</div>
         </td>
-        <td style="padding:10px 12px;">
+        <td style="padding:10px 12px;cursor:pointer;" onclick="openAchievementDetail('${a.id}')">
           <div style="font-weight:600;">${escHtml(a.title||'—')}</div>
           ${a.description?`<div style="font-size:11px;color:var(--muted);">${escHtml(a.description.substring(0,60))}${a.description.length>60?'…':''}</div>`:''}
         </td>
@@ -12928,7 +13133,7 @@ function renderAchTable(achs) {
           <button onclick="openEditAchievementModal('${a.id}')" style="background:#e0e7ff;color:#3730a3;border:none;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;margin-right:4px;">✏️</button>
           <button onclick="deleteAchievement('${a.id}')" style="background:#fee2e2;color:#991b1b;border:none;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;">🗑</button>
         </td>` : ''}
-      </tr>`).join('')}
+      </tr>`}).join('')}
     </tbody></table></div>`;
 }
 
@@ -16170,7 +16375,7 @@ initAuth();
 
 // ── PHASE 5: ENFORCE SINGLE MODAL AT A TIME ──
 (function(){
-  const modalIds = ['achievement-modal','add-house-points-modal','announcement-modal','att-modal','attendance-modal','bulk-cert-modal','cert-preview-modal','cert-templates-modal','confirm-delete-gallery-modal','confirm-delete-modal','confirm-delete-result-modal','confirm-revoke-modal','create-event-modal','event-detail-modal','gallery-preview-modal','gallery-upload-modal','gen-cert-modal','house-detail-modal','participants-modal','photo-upload-modal','profile-complete-modal','pub-event-modal','upload-result-modal','verify-cert-modal','album-modal','confirm-delete-album-modal'];
+  const modalIds = ['achievement-modal','add-house-points-modal','announcement-modal','att-modal','attendance-modal','bulk-cert-modal','cert-preview-modal','cert-templates-modal','confirm-delete-gallery-modal','confirm-delete-modal','confirm-delete-result-modal','confirm-revoke-modal','create-event-modal','event-detail-modal','gallery-preview-modal','gallery-upload-modal','gen-cert-modal','house-detail-modal','participants-modal','photo-upload-modal','profile-complete-modal','pub-event-modal','upload-result-modal','verify-cert-modal','album-modal','confirm-delete-album-modal','ach-detail-modal'];
   function isOpen(el){ return el && (el.style.display==='flex'||el.style.display==='block'); }
   function setup(){
     modalIds.forEach(id=>{
