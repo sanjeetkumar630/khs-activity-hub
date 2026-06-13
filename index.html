@@ -2246,6 +2246,12 @@ tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
+    <!-- Student details card — admission no, class, house etc -->
+    <div class="card" style="margin-bottom:1rem;" id="profile-student-details-card">
+      <div class="card-title">🎓 My Details</div>
+      <div id="profile-student-details-body" style="font-size:13px;color:var(--muted);">Loading…</div>
+    </div>
+
     <!-- Participation section — live Supabase data -->
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
       <div>
@@ -4780,6 +4786,39 @@ function updateProfilePage() {
     const cls = currentRole==='admin'?'badge-red':currentRole==='teacher'?'badge-green':'badge-blue';
     rb.textContent = def.emoji + ' ' + def.label;
     rb.className = 'badge ' + cls;
+  }
+
+  loadProfileStudentDetails();
+}
+
+// ── Load student-specific details (admission no, class, house, points) ──
+async function loadProfileStudentDetails() {
+  const card = document.getElementById('profile-student-details-card');
+  const body = document.getElementById('profile-student-details-body');
+  if (!card || !body) return;
+
+  if (currentRole !== 'student') { card.style.display = 'none'; return; }
+  card.style.display = '';
+  body.innerHTML = 'Loading…';
+
+  try {
+    const { data, error } = await supabaseClient.from('students').select('*').eq('id', currentUser.id).maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      body.innerHTML = `<div style="padding:8px 0;">⚠️ Your student record hasn't been set up yet. Please contact your admin.</div>`;
+      return;
+    }
+    const houseColors = { Agni:'#ef4444', Surya:'#3b82f6', Indra:'#22c55e', Varun:'#f59e0b' };
+    const houseColor = houseColors[data.house] || '#94a3b8';
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;">
+        <div><div style="font-size:11px;text-transform:uppercase;color:var(--muted);">Admission No.</div><div style="font-weight:700;font-size:14px;">${escHtml(data.admission_no || '—')}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;color:var(--muted);">Class / Section</div><div style="font-weight:700;font-size:14px;">${escHtml((data.class||'—'))}${data.section ? ' · '+escHtml(data.section) : ''}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;color:var(--muted);">House</div><div style="font-weight:700;font-size:14px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${houseColor};margin-right:6px;"></span>${escHtml(data.house || '—')}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;color:var(--muted);">House Points</div><div style="font-weight:700;font-size:14px;color:var(--blue);">${data.points ?? 0}</div></div>
+      </div>`;
+  } catch(err) {
+    body.innerHTML = `<div style="color:#ef4444;">❌ Could not load details: ${escHtml(err.message)}</div>`;
   }
 }
 
