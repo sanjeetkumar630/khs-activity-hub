@@ -4314,25 +4314,33 @@ tr:last-child td{border-bottom:none;}
 <!-- END MARKER: phase13b-modals -->
 
 <!-- ACHIEVEMENT DETAIL MODAL (GALLERY-B) -->
-<div id="ach-detail-modal" onclick="if(event.target===this)closeAchievementDetail()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;align-items:center;justify-content:center;padding:1rem;">
-  <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;">
-    <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:18px;font-weight:800;" id="ach-detail-title">—</div>
-      <button class="modal-close-btn" onclick="closeAchievementDetail()">✕</button>
+<div id="ach-detail-modal" onclick="if(event.target===this)closeAchievementDetail()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(2px);z-index:1100;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:18px;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.25);">
+    <!-- Hero header -->
+    <div id="ach-detail-hero" style="position:relative;padding:1.75rem 1.5rem;border-radius:18px 18px 0 0;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;overflow:hidden;">
+      <div style="position:absolute;top:-30px;right:-30px;font-size:140px;opacity:.15;line-height:1;">🏅</div>
+      <button class="modal-close-btn" onclick="closeAchievementDetail()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.18);color:#fff;border-radius:50%;">✕</button>
+      <div id="ach-detail-level-badge" style="display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:999px;margin-bottom:8px;">—</div>
+      <div style="font-size:21px;font-weight:800;line-height:1.25;" id="ach-detail-title">—</div>
+      <div style="font-size:13px;opacity:.9;margin-top:4px;" id="ach-detail-student">—</div>
     </div>
-    <div style="padding:1.5rem;">
-      <div id="ach-detail-rows" style="font-size:13px;line-height:1.9;"></div>
-      <div id="ach-detail-desc" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
-      <div id="ach-detail-photos-section" style="margin-top:16px;display:none;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-weight:700;font-size:13px;">📷 Achievement Photos</div>
+
+    <!-- Info chips -->
+    <div id="ach-detail-rows" style="display:flex;flex-wrap:wrap;gap:8px;padding:1.25rem 1.5rem 0;"></div>
+
+    <div style="padding:0 1.5rem 1.5rem;">
+      <div id="ach-detail-desc" style="margin-top:14px;font-size:13px;color:var(--muted);line-height:1.7;background:#f8fafc;border-radius:10px;padding:12px 14px;display:none;"></div>
+
+      <div id="ach-detail-photos-section" style="margin-top:18px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;">📷 Achievement Photos <span id="ach-detail-photo-count" style="font-weight:600;color:var(--muted);font-size:11px;"></span></div>
           <button class="btn btn-outline btn-sm" id="ach-detail-upload-btn" style="display:none;" onclick="openAchievementPhotoUpload()">+ Upload</button>
         </div>
-        <div class="gal-albums-grid" id="ach-detail-photos-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div>
-        <div id="ach-detail-photos-empty" style="font-size:12px;color:var(--muted);display:none;">No photos uploaded yet.</div>
+        <div class="gal-albums-grid" id="ach-detail-photos-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;"></div>
+        <div id="ach-detail-photos-empty" style="font-size:12px;color:var(--muted);text-align:center;padding:1.5rem 0;border:1.5px dashed var(--border);border-radius:10px;display:none;">📭 No photos uploaded yet.</div>
       </div>
     </div>
-    <div style="padding:1rem 1.5rem;border-top:1px solid var(--border);text-align:right;">
+    <div style="padding:1rem 1.5rem;border-top:1px solid var(--border);text-align:right;background:#f8faff;border-radius:0 0 18px 18px;">
       <button class="btn btn-outline" onclick="closeAchievementDetail()">Close</button>
     </div>
   </div>
@@ -10860,6 +10868,9 @@ async function loadLinkedAlbumPhotos(type, id, name) {
   }
   galFilteredImages = photos; // enable preview prev/next + delete
 
+  const countEl = document.getElementById('ach-detail-photo-count');
+  if (countEl) countEl.textContent = photos.length ? `(${photos.length})` : '';
+
   if (!photos.length) {
     grid.innerHTML = '';
     if (empty) empty.style.display = '';
@@ -10870,9 +10881,9 @@ async function loadLinkedAlbumPhotos(type, id, name) {
   const canDelete = def.canManageEvents;
   grid.innerHTML = photos.map(img => {
     const delBtn = canDelete ? `<button class="gal-item-delete" onclick="event.stopPropagation();confirmDeleteGallery('${img.id}','${escHtml(img.title||'this photo')}')">🗑️</button>` : '';
-    return `<div class="gal-item" style="aspect-ratio:1;" onclick="openGalleryPreview('${img.id}')">
+    return `<div class="gal-item" style="aspect-ratio:1;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);" onclick="openGalleryPreview('${img.id}')">
       ${delBtn}
-      <img src="${escHtml(img.image_url)}" alt="${escHtml(img.title||'Photo')}" loading="lazy"/>
+      <img src="${escHtml(img.image_url)}" alt="${escHtml(img.title||'Photo')}" loading="lazy" style="width:100%;height:100%;object-fit:cover;transition:transform .2s;"/>
     </div>`;
   }).join('');
 }
@@ -13104,15 +13115,32 @@ function openAchievementDetail(id) {
   if (!a) return;
   currentDetailAchievementId = id;
 
+  const levelGradients = {
+    Gold:   'linear-gradient(135deg,#d97706,#f59e0b)',
+    Silver: 'linear-gradient(135deg,#64748b,#94a3b8)',
+    Bronze: 'linear-gradient(135deg,#9a3412,#c2703a)',
+  };
+  const hero = document.getElementById('ach-detail-hero');
+  hero.style.background = levelGradients[a.level] || 'linear-gradient(135deg,#1d4ed8,#7c3aed)';
+
   document.getElementById('ach-detail-title').textContent = a.title || 'Achievement';
-  document.getElementById('ach-detail-rows').innerHTML = `
-    <div><strong>Student:</strong> ${escHtml(a.student_name||'—')} ${a.admission_no?`(${escHtml(a.admission_no)})`:''}</div>
-    <div><strong>Category:</strong> ${ACH_CATEGORY_EMOJI[a.category]||'📌'} ${escHtml(a.category||'—')}</div>
-    <div><strong>Level:</strong> ${ACH_LEVEL_EMOJI[a.level]||'🎗️'} ${escHtml(a.level||'—')}</div>
-    <div><strong>Date:</strong> ${a.achievement_date ? new Date(a.achievement_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—'}</div>
-    <div><strong>House:</strong> ${escHtml(a.house||'—')}</div>
-  `;
-  document.getElementById('ach-detail-desc').textContent = a.description || '';
+  document.getElementById('ach-detail-student').textContent =
+    `👤 ${a.student_name||'—'}${a.admission_no ? ' · '+a.admission_no : ''}`;
+  document.getElementById('ach-detail-level-badge').innerHTML =
+    `${ACH_LEVEL_EMOJI[a.level]||'🎗️'} ${escHtml(a.level||'Achievement')} Level`;
+
+  const dateStr = a.achievement_date ? new Date(a.achievement_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  const houseColors = { Agni:'#fee2e2', Surya:'#dbeafe', Indra:'#dcfce7', Varun:'#fef3c7' };
+  const houseTextColors = { Agni:'#991b1b', Surya:'#1e40af', Indra:'#166534', Varun:'#92400e' };
+  const chip = (icon, label, bg, color) => `<div style="display:flex;align-items:center;gap:6px;background:${bg||'#f1f5f9'};color:${color||'#334155'};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;">${icon} ${escHtml(label)}</div>`;
+  document.getElementById('ach-detail-rows').innerHTML =
+    chip(ACH_CATEGORY_EMOJI[a.category]||'📌', a.category||'—') +
+    chip('📅', dateStr) +
+    (a.house ? chip('🏠', a.house, houseColors[a.house], houseTextColors[a.house]) : '');
+
+  const descEl = document.getElementById('ach-detail-desc');
+  if (a.description) { descEl.textContent = a.description; descEl.style.display = ''; }
+  else { descEl.style.display = 'none'; }
 
   const def = ROLES[currentRole] || ROLES.student;
   const upBtn = document.getElementById('ach-detail-upload-btn');
