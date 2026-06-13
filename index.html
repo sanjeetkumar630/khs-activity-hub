@@ -10841,16 +10841,26 @@ async function loadLinkedAlbumPhotos(type, id, name) {
 // Upload button handlers — open gallery upload pre-bound to the linked album
 async function openEventPhotoUpload() {
   if (!currentDetailEventId) return;
-  const ev = allEvents.find(e=>e.id===currentDetailEventId);
-  const album = await getOrCreateLinkedAlbum('event', currentDetailEventId, ev?.title);
-  await openGalleryUploadModalFor(album, ev?.id || null, () => { closeDetailModal(); viewEvent(currentDetailEventId); });
+  try {
+    const ev = allEvents.find(e=>e.id===currentDetailEventId);
+    const album = await getOrCreateLinkedAlbum('event', currentDetailEventId, ev?.title);
+    await openGalleryUploadModalFor(album, ev?.id || null, () => { closeDetailModal(); viewEvent(currentDetailEventId); });
+  } catch(e) {
+    console.error('openEventPhotoUpload:', e);
+    showToast('❌ Could not open upload: ' + (e.message||'Unknown error') + '. Make sure the "gallery_albums" table exists in Supabase.', 'error');
+  }
 }
 
 async function openAchievementPhotoUpload() {
   if (!currentDetailAchievementId) return;
-  const a = allAchievements.find(x=>x.id===currentDetailAchievementId);
-  const album = await getOrCreateLinkedAlbum('achievement', currentDetailAchievementId, a?.title);
-  await openGalleryUploadModalFor(album, null, () => { openAchievementDetail(currentDetailAchievementId); });
+  try {
+    const a = allAchievements.find(x=>x.id===currentDetailAchievementId);
+    const album = await getOrCreateLinkedAlbum('achievement', currentDetailAchievementId, a?.title);
+    await openGalleryUploadModalFor(album, null, () => { openAchievementDetail(currentDetailAchievementId); });
+  } catch(e) {
+    console.error('openAchievementPhotoUpload:', e);
+    showToast('❌ Could not open upload: ' + (e.message||'Unknown error') + '. Make sure the "gallery_albums" table exists in Supabase.', 'error');
+  }
 }
 
 // Open the standard upload modal, pre-select an album, and run a callback on success
@@ -15587,7 +15597,6 @@ window.saveEvent = async function saveEventV16B() {
   // We patch by temporarily wrapping supabase insert
   var _origInsert = null;
   var createdEventId = null;
-  var origSupaFrom = window.supabaseClient.from.bind(window.supabaseClient);
 
   // We'll intercept after save by hooking on allEvents.unshift
   var _origUnshift = Array.prototype.unshift;
