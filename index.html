@@ -5096,12 +5096,14 @@ function showFormError(msg) {
   el.textContent = msg;
   el.style.display = 'block';
   document.getElementById('event-form-success').style.display = 'none';
+  el.scrollIntoView({behavior:'smooth', block:'center'});
 }
 function showFormSuccess(msg) {
   const el = document.getElementById('event-form-success');
   el.textContent = msg;
   el.style.display = 'block';
   document.getElementById('event-form-error').style.display = 'none';
+  el.scrollIntoView({behavior:'smooth', block:'center'});
 }
 function hideFormMessages() {
   document.getElementById('event-form-error').style.display = 'none';
@@ -15415,6 +15417,18 @@ async function approveSignup(userId, name) {
       var res2 = await supabaseClient.from('profiles').update({ status: 'active' }).eq('id', userId);
       if (res2.error) throw res2.error;
     }
+    // GALLERY-FIX: ensure approved student appears in Students section
+    try {
+      var prof = await supabaseClient.from('profiles').select('full_name,email,role,admission_no').eq('id', userId).single();
+      if (prof.data && prof.data.role === 'student') {
+        await supabaseClient.from('students').upsert([{
+          id: userId,
+          name: prof.data.full_name || (prof.data.email||'').split('@')[0],
+          email: prof.data.email || null,
+          admission_no: prof.data.admission_no || null,
+        }], { onConflict: 'id', ignoreDuplicates: false });
+      }
+    } catch(syncErr) { console.warn('Student sync (approve) non-fatal:', syncErr.message); }
     showToast('✅ ' + name + ' approved! They can now log in and complete their profile.', 'success');
     loadPendingApprovals();
     updateApprovalBadge();
@@ -16295,7 +16309,7 @@ async function saveProfileCompletion() {
     if (cat === 'completed') {
       document.querySelectorAll('.tab, .evt-tab').forEach(function(t){ t.classList.remove('active'); });
       if (btn) btn.classList.add('active');
-      var completed = (window.allEvents||[]).filter(function(e){ return e.status === 'completed'; });
+      var completed = (allEvents||[]).filter(function(e){ return e.status === 'completed'; });
       window.renderEvents(completed);
     } else {
       _origFilter(cat, btn);
