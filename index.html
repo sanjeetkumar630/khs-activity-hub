@@ -4884,11 +4884,14 @@ async function loadEvents() {
   try {
     const { data, error } = await supabaseClient
       .from('events')
-      .select('*')
+      .select('*, registrations(count)')
       .order('event_date', { ascending: true });
 
     if (error) throw error;
-    allEvents = data || [];
+    allEvents = (data || []).map(ev => ({
+      ...ev,
+      current_registrations: ev.registrations?.[0]?.count ?? ev.current_registrations ?? 0
+    }));
     renderEvents(allEvents);
   } catch (err) {
     console.error('Load events error:', err);
@@ -8161,8 +8164,9 @@ function closeCertPreviewModal() {
 
 function editCertFromPreview() {
   if (!previewingCert) return;
+  const id = previewingCert.id;
   closeCertPreviewModal();
-  openEditCertModal(previewingCert.id);
+  setTimeout(() => openEditCertModal(id), 200);
 }
 
 // ── DOWNLOAD PDF ──
