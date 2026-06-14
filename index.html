@@ -2191,6 +2191,9 @@ tr:last-child td{border-bottom:none;}
           <option value="Varun">🟡 Varun</option>
         </select>
         <input id="att-filter-search" type="text" placeholder="Search student…" oninput="renderAttendanceTable()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;min-width:160px;"/>
+        <select id="att-filter-event" onchange="renderAttendanceTable()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;min-width:160px;">
+          <option value="">All Events</option>
+        </select>
         <button class="btn btn-outline btn-sm" onclick="clearAttFilters()">✕ Clear</button>
       </div>
     </div>
@@ -2200,7 +2203,7 @@ tr:last-child td{border-bottom:none;}
       <div class="card">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Class</th><th>Date</th><th>Status</th><th>Remarks</th><th id="att-actions-th" style="display:none;">Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Class / Section</th><th>House</th><th>Event</th><th>Date</th><th>Status</th><th>Remarks</th><th id="att-actions-th" style="display:none;">Actions</th></tr></thead>
             <tbody id="att-table-body">
               <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--muted);">⏳ Loading attendance…</td></tr>
             </tbody>
@@ -3985,17 +3988,25 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ADD HOUSE POINTS MODAL (Teacher/Admin) -->
 <div id="add-house-points-modal" onclick="if(event.target===this)closeAddHousePointsModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;align-items:center;justify-content:center;padding:1rem;">
-  <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:authSlideIn .25s ease;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:authSlideIn .25s ease;">
     <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-radius:16px 16px 0 0;">
       <div>
-        <div style="font-size:16px;font-weight:800;">Add House Points</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Manually award house points</div>
+        <div style="font-size:16px;font-weight:800;" id="ahp-modal-title">Manage House Points</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Add or deduct points from a house</div>
       </div>
       <button onclick="closeAddHousePointsModal()" class="modal-close-btn">✕</button>
     </div>
     <div style="padding:1.5rem;">
       <div id="ahp-error"   style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-bottom:1rem;"></div>
       <div id="ahp-success" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;font-size:13px;color:#065f46;margin-bottom:1rem;"></div>
+
+      <!-- Add / Deduct toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:1.25rem;">
+        <button id="ahp-tab-add" class="btn btn-primary btn-sm" style="flex:1;" onclick="setAhpMode('add')">➕ Add Points</button>
+        <button id="ahp-tab-deduct" class="btn btn-outline btn-sm" style="flex:1;" onclick="setAhpMode('deduct')">➖ Deduct Points</button>
+      </div>
+      <input type="hidden" id="ahp-mode" value="add"/>
+
       <div class="form-grid">
         <div class="form-group">
           <label>House *</label>
@@ -4009,7 +4020,7 @@ tr:last-child td{border-bottom:none;}
         </div>
         <div class="form-group">
           <label>Points *</label>
-          <input id="ahp-points" type="number" placeholder="e.g. 10" min="1" max="500"/>
+          <input id="ahp-points" type="number" placeholder="e.g. 10" min="1" max="10000"/>
         </div>
         <div class="form-group full">
           <label>Reason *</label>
@@ -4523,6 +4534,12 @@ tr:last-child td{border-bottom:none;}
             <option value="present">✅ Present</option>
             <option value="absent">❌ Absent</option>
             <option value="leave">🟡 Leave</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Linked Event <span style="font-weight:400;color:var(--muted);">(optional — auto-registers student as participant)</span></label>
+          <select id="att-event-link" style="border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;width:100%;outline:none;">
+            <option value="">— No event —</option>
           </select>
         </div>
         <div class="form-group full">
@@ -7281,18 +7298,35 @@ function closeHouseDetailModal() {
 // ══════════════════════════════════════════════════════════════
 //  ADD HOUSE POINTS MODAL (Teacher/Admin)
 // ══════════════════════════════════════════════════════════════
+function setAhpMode(mode) {
+  document.getElementById('ahp-mode').value = mode;
+  const addBtn = document.getElementById('ahp-tab-add');
+  const dedBtn = document.getElementById('ahp-tab-deduct');
+  const saveBtn = document.getElementById('ahp-save-btn');
+  if (mode === 'add') {
+    addBtn.className = 'btn btn-primary btn-sm'; addBtn.style.flex='1';
+    dedBtn.className = 'btn btn-outline btn-sm'; dedBtn.style.flex='1';
+    saveBtn.textContent = '💾 Award Points';
+    saveBtn.style.background = '';
+  } else {
+    dedBtn.className = 'btn btn-danger btn-sm'; dedBtn.style.flex='1';
+    addBtn.className = 'btn btn-outline btn-sm'; addBtn.style.flex='1';
+    saveBtn.textContent = '➖ Deduct Points';
+    saveBtn.style.background = '#ef4444';
+  }
+}
+
 async function openAddHousePointsModal() {
   const def = ROLES[currentRole] || ROLES.student;
   if (!def.canUploadResults) { showToast('🚫 Not authorized.', 'error'); return; }
 
-  // Reset form
   ['ahp-house','ahp-points','ahp-reason'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('ahp-error').style.display   = 'none';
   document.getElementById('ahp-success').style.display = 'none';
+  setAhpMode('add');
 
-  // Populate events dropdown
   const sel = document.getElementById('ahp-event');
   if (sel) {
     sel.innerHTML = '<option value="">— No event link —</option>' +
@@ -7313,15 +7347,18 @@ async function saveHousePoints() {
   const pts    = parseInt(document.getElementById('ahp-points')?.value);
   const reason = document.getElementById('ahp-reason')?.value.trim();
   const evId   = document.getElementById('ahp-event')?.value || null;
+  const mode   = document.getElementById('ahp-mode')?.value || 'add';
 
   const errEl = document.getElementById('ahp-error');
   const sucEl = document.getElementById('ahp-success');
   errEl.style.display = 'none';
   sucEl.style.display = 'none';
 
-  if (!house)              { errEl.textContent = 'Please select a house.'; errEl.style.display='block'; return; }
-  if (!pts || pts < 1)     { errEl.textContent = 'Points must be at least 1.'; errEl.style.display='block'; return; }
-  if (!reason)             { errEl.textContent = 'Please enter a reason.'; errEl.style.display='block'; return; }
+  if (!house)           { errEl.textContent = 'Please select a house.'; errEl.style.display='block'; return; }
+  if (!pts || pts < 1)  { errEl.textContent = 'Points must be at least 1.'; errEl.style.display='block'; return; }
+  if (!reason)          { errEl.textContent = 'Please enter a reason.'; errEl.style.display='block'; return; }
+
+  const finalPts = mode === 'deduct' ? -pts : pts;
 
   const btn = document.getElementById('ahp-save-btn');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
@@ -7330,24 +7367,28 @@ async function saveHousePoints() {
     const { error } = await supabaseClient.from('house_points').insert([{
       house_name: house,
       event_id: evId,
-      points_awarded: pts,
-      reason,
+      points_awarded: finalPts,
+      reason: (mode === 'deduct' ? '[-] ' : '') + reason,
     }]);
     if (error) throw error;
 
-    sucEl.textContent = `✅ ${pts} points awarded to ${house} House!`;
+    const msg = mode === 'deduct'
+      ? `➖ ${pts} points deducted from ${house} House`
+      : `✅ ${pts} points awarded to ${house} House!`;
+    sucEl.textContent = msg;
     sucEl.style.display = 'block';
-    showToast(`✅ ${pts} pts → ${house} House`, 'success');
+    showToast(msg, mode === 'deduct' ? 'error' : 'success');
     setTimeout(() => {
       closeAddHousePointsModal();
       loadHousesPage();
       loadDashboardHouseWidget();
     }, 1400);
-  } catch (err) {
-    errEl.textContent = '❌ ' + err.message;
+  } catch(err) {
+    errEl.textContent = 'Failed: ' + (err.message || 'Unknown error');
     errEl.style.display = 'block';
   } finally {
-    btn.disabled = false; btn.textContent = '💾 Award Points';
+    btn.disabled = false;
+    btn.textContent = mode === 'deduct' ? '➖ Deduct Points' : '💾 Award Points';
   }
 }
 
@@ -12041,6 +12082,17 @@ async function loadAttendancePage() {
     if (error) throw error;
     allAttendance12 = data || [];
     filteredAttendance12 = [...allAttendance12];
+
+    // Populate event filter dropdown
+    const evFilterSel = document.getElementById('att-filter-event');
+    if (evFilterSel) {
+      const evIds = [...new Set(allAttendance12.filter(a=>a.event_id).map(a=>a.event_id))];
+      evFilterSel.innerHTML = '<option value="">All Events</option>' +
+        evIds.map(eid => {
+          const ev = allEvents.find(e=>e.id===eid);
+          return `<option value="${eid}">${escHtml(ev?.title||eid)}</option>`;
+        }).join('');
+    }
     renderAttendanceTable();
     if (_attCurrentTab === 'summary') renderAttSummary();
   } catch(e) {
@@ -12271,7 +12323,7 @@ async function saveBulkAttendance() {
 }
 
 function clearAttFilters() {
-  ['att-filter-date','att-filter-status','att-filter-class','att-filter-section','att-filter-house','att-filter-search']
+  ['att-filter-date','att-filter-status','att-filter-class','att-filter-section','att-filter-house','att-filter-search','att-filter-event']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
   filteredAttendance12 = [...allAttendance12];
   renderAttendanceTable();
@@ -12292,6 +12344,7 @@ function renderAttendanceTable() {
   const secFilter= document.getElementById('att-filter-section')?.value || '';
   const hFilter  = document.getElementById('att-filter-house')?.value || '';
   const search   = (document.getElementById('att-filter-search')?.value || '').toLowerCase();
+  const evFilter = document.getElementById('att-filter-event')?.value || '';
 
   filteredAttendance12 = allAttendance12.filter(a => {
     if (dFilter  && a.date !== dFilter) return false;
@@ -12300,6 +12353,7 @@ function renderAttendanceTable() {
     if (cFilter   && (s.class||'')   !== cFilter)   return false;
     if (secFilter && (s.section||'') !== secFilter)  return false;
     if (hFilter   && (s.house||'')   !== hFilter)    return false;
+    if (evFilter  && a.event_id !== evFilter)         return false;
     if (search && !(s.name||'').toLowerCase().includes(search) && !(a.remarks||'').toLowerCase().includes(search)) return false;
     return true;
   });
@@ -12313,18 +12367,30 @@ function renderAttendanceTable() {
 
   tbody.innerHTML = filteredAttendance12.map(a => {
     const s = a.students || {};
-    const statusCls = `att-status-${a.status||'pending'}`;
+    const statusColors = { present:'#10b981', absent:'#ef4444', leave:'#f59e0b', pending:'#94a3b8' };
+    const statusLabels = { present:'✅ Present', absent:'❌ Absent', leave:'🟡 Leave', pending:'⏳ Pending' };
+    const st = a.status || 'pending';
+    const color = statusColors[st] || '#94a3b8';
     const dateFmt = a.date ? new Date(a.date+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
-    const editBtn = isStaff
-      ? `<button class="btn btn-outline btn-sm" onclick="openEditAttModal('${a.id}')">✏️ Edit</button>`
-      : '';
-    return `<tr>
-      <td>${escHtml(s.name||a.student_id||'—')}</td>
-      <td>${escHtml(s.class||'—')}${s.section?` <span style="color:var(--muted);">${escHtml(s.section)}</span>`:''}</td>
-      <td>${dateFmt}</td>
-      <td><span class="${statusCls}">${(a.status||'pending').charAt(0).toUpperCase()+(a.status||'pending').slice(1)}</span></td>
-      <td style="font-size:12px;color:var(--muted);">${escHtml(a.remarks||'—')}</td>
-      <td style="display:${isStaff?'':'none'};">${editBtn}</td>
+    const houseColors = { Agni:'#fee2e2', Surya:'#dbeafe', Indra:'#dcfce7', Varun:'#fef3c7' };
+    const houseBg = houseColors[s.house] || '#f1f5f9';
+    const initials = (s.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().substring(0,2);
+    const editBtn = isStaff ? `<button class="btn btn-outline btn-sm" onclick="openEditAttModal('${a.id}')">✏️ Edit</button>` : '';
+    const ev = a.event_id ? allEvents.find(e=>e.id===a.event_id) : null;
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${initials}</div>
+          <div><div style="font-weight:600;font-size:13px;">${escHtml(s.name||a.student_id||'—')}</div></div>
+        </div>
+      </td>
+      <td style="padding:10px 12px;font-size:13px;">${escHtml(s.class||'—')}${s.section?` · ${escHtml(s.section)}`:''}</td>
+      <td style="padding:10px 12px;">${s.house?`<span style="background:${houseBg};padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;">${escHtml(s.house)}</span>`:'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;">${ev?`<span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:600;">${escHtml(ev.title)}</span>`:'<span style="color:var(--muted);">—</span>'}</td>
+      <td style="padding:10px 12px;font-size:13px;">${dateFmt}</td>
+      <td style="padding:10px 12px;"><span style="background:${color}20;color:${color};padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;">${statusLabels[st]||st}</span></td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--muted);">${escHtml(a.remarks||'—')}</td>
+      <td style="padding:10px 12px;display:${isStaff?'':'none'};">${editBtn}</td>
     </tr>`;
   }).join('');
 }
@@ -12392,6 +12458,13 @@ function openMarkAttendanceModal() {
   sel.innerHTML = '<option value="">— Select Student —</option>' +
     allStudents12.map(s => `<option value="${s.id}">${escHtml(s.name)} (${escHtml(s.class||'?')}${s.section?' '+escHtml(s.section):''})</option>`).join('');
 
+  // Populate event link dropdown
+  const evSel = document.getElementById('att-event-link');
+  if (evSel) {
+    evSel.innerHTML = '<option value="">— No event —</option>' +
+      allEvents.map(ev => `<option value="${ev.id}">${escHtml(ev.title)}</option>`).join('');
+  }
+
   const modal = document.getElementById('att-modal');
   if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
 }
@@ -12427,6 +12500,7 @@ async function saveAttendance12c() {
   const date      = document.getElementById('att-date').value;
   const status    = document.getElementById('att-status').value;
   const remarks   = document.getElementById('att-remarks').value.trim() || null;
+  const eventLink = document.getElementById('att-event-link')?.value || null;
   const errEl     = document.getElementById('att-modal-error');
 
   if (!studentId) { errEl.textContent='Please select a student.'; errEl.style.display='block'; return; }
@@ -12450,6 +12524,34 @@ async function saveAttendance12c() {
       const { data, error } = await supabaseClient.from('attendance').insert([payload]).select(`*,students(name,class,section,house)`).single();
       if (error) throw error;
       allAttendance12.unshift(data);
+
+      // Auto-register student as event participant if event linked
+      if (eventLink && status === 'present') {
+        const student = allStudents12.find(s => s.id === studentId);
+        try {
+          const { data: existing } = await supabaseClient.from('registrations')
+            .select('id').eq('event_id', eventLink).eq('student_id', studentId).maybeSingle();
+          if (!existing) {
+            await supabaseClient.from('registrations').insert([{
+              event_id: eventLink,
+              student_id: studentId,
+              student_name: student?.name || '',
+              house: student?.house || null,
+              status: 'approved',
+              attendance_status: 'present',
+            }]);
+            // Increment current_registrations
+            const ev = allEvents.find(e => e.id === eventLink);
+            if (ev) {
+              await supabaseClient.from('events').update({
+                current_registrations: (ev.current_registrations || 0) + 1
+              }).eq('id', eventLink);
+              ev.current_registrations = (ev.current_registrations || 0) + 1;
+            }
+          }
+        } catch(regErr) { console.warn('Auto-register non-fatal:', regErr.message); }
+      }
+
       showToast('✅ Attendance marked.', 'success');
     }
     filteredAttendance12 = [...allAttendance12];
@@ -15140,7 +15242,7 @@ async function saveEventResults(eventId, eventTitle) {
     toSave.push({
       student_id:    sel.dataset.studentId,
       student_name:  sel.dataset.studentName,
-      house:         sel.dataset.house,
+      house:         sel.dataset.house || null,
       position:      posNum,
       event_id:      eventId,
       event_title:   eventTitle,
@@ -15982,7 +16084,7 @@ async function saveCompetitionResults(compId, compTitle, eventId) {
     toSave.push({
       student_id:     sel.dataset.studentId,
       student_name:   sel.dataset.studentName,
-      house:          sel.dataset.house,
+      house:          sel.dataset.house || null,
       position:       posNum,
       event_id:       eventId,
       competition_id: compId,
