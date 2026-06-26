@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sanjeetkumar630.github.io/khs-activity-hub/sitemap.xml
